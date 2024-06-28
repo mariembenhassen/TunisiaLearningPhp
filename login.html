@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Form</title>
+</head>
+<body>
+    <h2>Login</h2>
+    <form id="loginForm" method="post">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+        <input type="submit" value="Login">
+    </form>
+    <div id="response"></div>
+
+    <script>
+        document.getElementById('loginForm').onsubmit = function(event) {
+            event.preventDefault();
+            var formData = new FormData(this);
+
+            fetch('login.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                var responseDiv = document.getElementById('response');
+                if (data.success) {
+                    responseDiv.innerHTML = 'Login successful! Role: ' + data.role;
+                    if (data.role === 'parent') {
+                        var childrenList = '<h3>Children:</h3><ul>';
+                        data.children.forEach(child => {
+                            childrenList += `<li>${child.child_name} (${child.sexe}), ${child.niveau}, ${child.classe}</li>`;
+                        });
+                        childrenList += '</ul>';
+                        responseDiv.innerHTML += childrenList;
+                    }
+                } else {
+                    responseDiv.innerHTML = 'Login failed: ' + data.message;
+                }
+            })
+            .catch(error => {
+                document.getElementById('response').innerHTML = 'An error occurred: ' + error;
+            });
+        };
+    </script>
+</body>
+</html>
