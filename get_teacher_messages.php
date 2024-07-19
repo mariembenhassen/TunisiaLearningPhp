@@ -68,6 +68,7 @@ if ($result !== false && $result->num_rows > 0) {
             $senderName = 'Admin';
         }
         $messages[] = array(
+            'idsource' => $row['idsource'],
             'mail' => $row['mail'],
             'dateheure' => $row['dateheure'],
             'lu' => $row['lu'],
