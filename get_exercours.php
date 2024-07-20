@@ -1,6 +1,5 @@
 <?php
 
-
 header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -87,17 +86,18 @@ function decryptMatiereById($id) {
         case 26:
             return 'التربية الرياضية';
         default:
-            return 'Unknown';
+            return 'Matiére';
     }
 }
 
-// Step 1: Fetch the current year's `idannescolaire`
-$sqlCurrentYear = "SELECT MAX(idannescolaire) AS currentYear FROM talimnet_cours";
+
+// Step 1: Fetch the current year's `id` from `talimnet_anneescolaire` where `en_cours=1`
+$sqlCurrentYear = "SELECT id FROM talimnet_anneescolaire WHERE en_cours = 1 LIMIT 1";
 $resultCurrentYear = $conn->query($sqlCurrentYear);
 
 if ($resultCurrentYear && $resultCurrentYear->num_rows > 0) {
     $rowCurrentYear = $resultCurrentYear->fetch_assoc();
-    $currentYear = $rowCurrentYear['currentYear'];
+    $currentYear = $rowCurrentYear['id'];
 } else {
     echo json_encode(["error" => "Error fetching current year: " . $conn->error]);
     $conn->close();

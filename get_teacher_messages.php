@@ -68,14 +68,15 @@ if ($result !== false && $result->num_rows > 0) {
             $senderName = 'Admin';
         }
         $messages[] = array(
-            'idsource' => $row['idsource'],
+            'id' => $row['id'],
             'mail' => $row['mail'],
             'dateheure' => $row['dateheure'],
             'lu' => $row['lu'],
             'idadministrateur' => $row['idadministrateur'],
             'idsender' => $row['idutilisateur'],
             'sender_name' => $senderName,
-            'idannescolaire' => $row['idannescolaire']
+            'idannescolaire' => $row['idannescolaire'],
+            'idsource' => $row['idsource']
         );
     }
     echo json_encode($messages);
