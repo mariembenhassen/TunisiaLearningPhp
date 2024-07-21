@@ -157,10 +157,12 @@ if ($result) {
             $matiereNom = decryptMatiereById($idMatiere); // Decrypt matiere name
             $type = $row["type"];
             $date = $row["date"];
+            $idcours = isset($row["idcours"]) ? $row["idcours"] : null;
+
 
             // Construct the course data with documents
             $courseData = array(
-                "idCours" => $idCours,
+                "idcours" => $idcours,
                 "idEnseignant" => $idEnseignant,
                 "Enseignant" => "$enseignantNom $enseignantPrenom",
                 "Matiere" => $matiereNom, // Include the decrypted matiere name
