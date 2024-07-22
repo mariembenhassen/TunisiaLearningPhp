@@ -55,7 +55,7 @@ if ($result !== false && $result->num_rows > 0) {
     while($row = $result->fetch_assoc()) {
         $senderName = '';
         if ($row['idadministrateur'] == 0) {
-            // Fetch teacher's name
+            // //tansesh ta3mel current year lina !!!!
             $teacherSql = "SELECT nom, prenom FROM talimnet_enseignants WHERE id = " . $row['idutilisateur'];
             $teacherResult = $conn->query($teacherSql);
             if ($teacherResult !== false && $teacherResult->num_rows > 0) {

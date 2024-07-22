@@ -1,13 +1,12 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
 
-header('Content-Type: application/json');
+// Allow CORS and handle preflight requests
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    // Handle preflight request
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -23,10 +22,11 @@ $dbname = "tunisialearning";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
+$conn->set_charset("utf8mb4"); // Ensure UTF-8 encoding
 
 // Check connection
 if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+    die(json_encode(array('error' => 'Connection failed: ' . $conn->connect_error)));
 }
 
 // Initialize variables
@@ -38,8 +38,23 @@ if ($iduser === null || $idetablissement === null) {
     die(json_encode(array('error' => 'iduser and/or idetablissement not provided')));
 }
 
-// Query to fetch messages
-$sql = "SELECT * FROM talimnet_mail WHERE vers_qui = 4 AND destinataire = $iduser AND idetablissement = $idetablissement";
+// Fetch the current school year
+$currentYearQuery = "SELECT id FROM talimnet_anneescolaire WHERE en_cours = 1";
+$currentYearResult = $conn->query($currentYearQuery);
+
+if ($currentYearResult->num_rows > 0) {
+    $currentYearRow = $currentYearResult->fetch_assoc();
+    $currentYear = $currentYearRow['id'];
+} else {
+    die(json_encode(array('error' => 'Current school year not found.')));
+}
+
+// Query to fetch messages, including the current school year
+$sql = "SELECT * FROM talimnet_mail 
+        WHERE vers_qui = 4 
+        AND destinataire = $iduser 
+        AND idetablissement = $idetablissement
+        AND idannescolaire = $currentYear";
 $result = $conn->query($sql);
 
 if ($result !== false && $result->num_rows > 0) {

@@ -1,4 +1,23 @@
 <?php
+// Start output buffering
+ob_start();
+
+// Set headers for JSON response
+header("Access-Control-Allow-Origin: *"); // Allows requests from any origin
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Allows GET, POST, and OPTIONS methods
+header("Access-Control-Allow-Headers: Content-Type, Authorization"); // Allows specific headers
+header("Content-Type: application/json");
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Error reporting for development (disable in production)
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(E_ALL);
 
 // Database connection settings
 $servername = "localhost"; // Change this if necessary
@@ -12,14 +31,8 @@ $conn->set_charset("utf8mb4");
 
 // Check the connection
 if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+    die(json_encode(['error' => 'Connection failed: ' . $conn->connect_error]));
 }
-
-// Allow cross-origin requests
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
-header("Content-Type: application/json"); // Set content type to JSON
 
 // Get the JSON input
 $input = json_decode(file_get_contents('php://input'), true);
@@ -29,6 +42,10 @@ if (isset($input['idSource'])) {
 
     // Prepare the SQL query with ordering by id in ascending order
     $stmt = $conn->prepare("SELECT mail, idetablissement, idutilisateur, id, expediteur FROM talimnet_mail WHERE idsource = ? ORDER BY id ASC");
+    if ($stmt === false) {
+        die(json_encode(['error' => 'Prepare failed: ' . $conn->error]));
+    }
+
     $stmt->bind_param("i", $idSource);
 
     // Execute the query
@@ -41,10 +58,12 @@ if (isset($input['idSource'])) {
     // Process each mail record
     $results = array();
     foreach ($mails as $mail) {
-        // Fetch the `nomprenom` from the appropriate table based on `idutilisateur`
-        if ($mail['id'] == $idSource) {
+       
             $tutorSql = "SELECT nomprenom FROM talimnet_tuteur WHERE id = ?";
             $stmt2 = $conn->prepare($tutorSql);
+            if ($stmt2 === false) {
+                die(json_encode(['error' => 'Prepare failed: ' . $conn->error]));
+            }
             $stmt2->bind_param("i", $mail['idutilisateur']);
             $stmt2->execute();
             $tutorResult = $stmt2->get_result();
@@ -55,17 +74,14 @@ if (isset($input['idSource'])) {
                 $mail['nomprenom'] = 'Unknown';
             }
             $stmt2->close();
-        } else {
-            $mail['nomprenom'] = 'Moi';
-        }
+       
 
-        // Decode HTML entities and remove unwanted HTML tags, characters, and newlines
+        // Decode HTML entities and remove unwanted HTML tags and characters
         $mail['mail'] = html_entity_decode($mail['mail'], ENT_QUOTES, 'UTF-8');
-        $mail['mail'] = preg_replace('/<[^>]*>/', '', $mail['mail']); // Remove all HTML tags
-        $mail['mail'] = preg_replace('/&lt;br \/&gt;|&lt;b&gt;|&lt;\/b&gt;/i', '', $mail['mail']); // Remove specific unwanted substrings
+        $mail['mail'] = strip_tags($mail['mail']); // Remove all HTML tags
         $mail['mail'] = str_replace("\n", ' ', $mail['mail']); // Replace newlines with a space
         $mail['mail'] = preg_replace('/\s+/', ' ', $mail['mail']); // Replace multiple spaces with a single space
-        $mail['mail'] = preg_replace('/\.\.\.\.\.\./', '', $mail['mail']); // Remove specific unwanted substring
+        $mail['mail'] = trim($mail['mail']); // Trim leading and trailing spaces
 
         $results[] = $mail;
     }
@@ -79,4 +95,7 @@ if (isset($input['idSource'])) {
 // Close the connection
 $stmt->close();
 $conn->close();
+
+// End output buffering and flush output
+ob_end_flush();
 ?>
