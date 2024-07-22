@@ -56,12 +56,12 @@ $stmt = $conn->prepare($sqlInsert);
 $stmt->bind_param("issii", $idUser, $message, $selectedTeacherId, $idannescolaire, $idsource);
 
 if ($stmt->execute()) {
-    $insertedId = $conn->insert_id; // Retrieve the last inserted ID
+    $insertedId = $conn->insert_id; 
     echo json_encode([
         "success" => "Message sent successfully.",
-        "message" => $message,  // Include the sent message in the response
-        "idsource" => $idsource,  // Return the ID source
-        "insertedId" => $insertedId  // Return the ID of the new row
+        "message" => $message,  
+        "idsource" => $idsource, 
+        "insertedId" => $insertedId 
     ]);
 } else {
     echo json_encode(["error" => "Error: " . $stmt->error]);
