@@ -31,11 +31,11 @@ if ($conn->connect_error) {
 
 // Initialize variables
 $iduser = isset($_REQUEST['iduser']) ? $_REQUEST['iduser'] : null;
-$idetablissement = isset($_REQUEST['idetablissement']) ? $_REQUEST['idetablissement'] : null;
+
 
 // Validate parameters
-if ($iduser === null || $idetablissement === null) {
-    die(json_encode(array('error' => 'iduser and/or idetablissement not provided')));
+if ($iduser === null ) {
+    die(json_encode(array('error' => 'iduser not provided')));
 }
 
 // Fetch the current school year
@@ -53,7 +53,7 @@ if ($currentYearResult->num_rows > 0) {
 $sql = "SELECT * FROM talimnet_mail 
         WHERE vers_qui = 4 
         AND destinataire = $iduser 
-        AND idetablissement = $idetablissement
+       
         AND idannescolaire = $currentYear";
 $result = $conn->query($sql);
 

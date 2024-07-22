@@ -41,7 +41,7 @@ if (isset($input['idSource'])) {
     $idSource = (int)$input['idSource'];
 
     // Prepare the SQL query with ordering by id in ascending order
-    $stmt = $conn->prepare("SELECT mail, idetablissement, idutilisateur, id, expediteur FROM talimnet_mail WHERE idsource = ? ORDER BY id ASC");
+    $stmt = $conn->prepare("SELECT mail, idetablissement, idutilisateur, id, expediteur, vers_qui FROM talimnet_mail WHERE idsource = ? ORDER BY id ASC");
     if ($stmt === false) {
         die(json_encode(['error' => 'Prepare failed: ' . $conn->error]));
     }
@@ -58,7 +58,8 @@ if (isset($input['idSource'])) {
     // Process each mail record
     $results = array();
     foreach ($mails as $mail) {
-       
+        if ($mail['vers_qui'] == 4) {
+            // If vers_qui = 4, get the tutor's name
             $tutorSql = "SELECT nomprenom FROM talimnet_tuteur WHERE id = ?";
             $stmt2 = $conn->prepare($tutorSql);
             if ($stmt2 === false) {
@@ -74,7 +75,16 @@ if (isset($input['idSource'])) {
                 $mail['nomprenom'] = 'Unknown';
             }
             $stmt2->close();
-       
+        } else if ($mail['vers_qui'] == 5) {
+            // If vers_qui = 5, set nomprenom to "Moi"
+            $mail['nomprenom'] = 'Moi';
+        } else {
+            // Otherwise, set nomprenom to "Moi"
+            $mail['nomprenom'] = 'Moi';
+        }
+
+        // Add the idSource field to the response
+        $mail['idSource'] = $idSource;
 
         // Decode HTML entities and remove unwanted HTML tags and characters
         $mail['mail'] = html_entity_decode($mail['mail'], ENT_QUOTES, 'UTF-8');
