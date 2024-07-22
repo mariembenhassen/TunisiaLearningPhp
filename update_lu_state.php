@@ -1,21 +1,30 @@
 <?php
+// Send CORS headers
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept");
 header('Content-Type: application/json');
+
+// Debugging output
+error_log("Debugging: Script started");
+
+// Handle preflight request
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// Read JSON input
 $data = json_decode(file_get_contents("php://input"));
 
-if(isset($data->messageId) && isset($data->lu)) {
+// Debugging output
+error_log("Debugging: JSON decoded");
+
+// Check if parameters are set
+if (isset($data->messageId) && isset($data->lu)) {
     $messageId = $data->messageId;
     $lu = $data->lu;
 
-    header('Content-Type: application/json');
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept");
-    
-    if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-        http_response_code(200);
-        exit();
-    }
-    
     // Database credentials
     $servername = "localhost";
     $username = "root";
@@ -50,4 +59,7 @@ if(isset($data->messageId) && isset($data->lu)) {
 } else {
     echo json_encode(["status" => "error", "message" => "Invalid parameters."]);
 }
+
+// Debugging output
+error_log("Debugging: Script ended");
 ?>
