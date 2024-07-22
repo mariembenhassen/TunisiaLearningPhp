@@ -1,4 +1,5 @@
 <?php
+
 // Database connection settings
 $servername = "localhost"; // Change this if necessary
 $username = "root";        // Change this if necessary
@@ -25,8 +26,8 @@ $input = json_decode(file_get_contents('php://input'), true);
 if (isset($input['idSource'])) {
     $idSource = (int)$input['idSource'];
 
-    // Prepare the SQL query with ordering
-    $stmt = $conn->prepare("SELECT mail, idetablissement, idutilisateur, id, expediteur FROM talimnet_mail WHERE idsource = ? ORDER BY dateheure DESC");
+    // Prepare the SQL query with ordering by id in ascending order
+    $stmt = $conn->prepare("SELECT mail, idetablissement, idutilisateur, id, expediteur FROM talimnet_mail WHERE idsource = ? ORDER BY id ASC");
     $stmt->bind_param("i", $idSource);
 
     // Execute the query
@@ -67,6 +68,3 @@ if (isset($input['idSource'])) {
 $stmt->close();
 $conn->close();
 ?>
-
-
-
