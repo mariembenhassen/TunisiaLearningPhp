@@ -37,6 +37,23 @@ $idUser = $data['idUser'];
 $selectedTeacherId = $data['selectedTeacherId'];
 $message = $data['message'];
 
+// Fetch idetablissement from talimnet_enseignants based on selectedTeacherId
+$sqlEtablissement = "SELECT idetablissement FROM talimnet_enseignants WHERE id = ?";
+$stmtEtablissement = $conn->prepare($sqlEtablissement);
+if (!$stmtEtablissement) {
+    die(json_encode(["error" => "Error preparing statement: " . $conn->error]));
+}
+$stmtEtablissement->bind_param("i", $selectedTeacherId);
+$stmtEtablissement->execute();
+$resultEtablissement = $stmtEtablissement->get_result();
+
+if ($resultEtablissement->num_rows > 0) {
+    $rowEtablissement = $resultEtablissement->fetch_assoc();
+    $idetablissement = $rowEtablissement['idetablissement'];
+} else {
+    die(json_encode(["error" => "Error: No establishment found for the selected teacher."]));
+}
+
 // Fetch idannescolaire where en_cours=1
 $sqlAnneeScolaire = "SELECT id FROM talimnet_anneescolaire WHERE en_cours=1";
 $resultAnneeScolaire = $conn->query($sqlAnneeScolaire);
@@ -48,11 +65,14 @@ if ($resultAnneeScolaire->num_rows > 0) {
 }
 
 // Prepare and execute the SQL insert query
-$sqlInsert = "INSERT INTO talimnet_mail (idetablissement, idutilisateur, dateheure, lu, expediteur, mail, idadministrateur, vers_qui, destinataire, idannescolaire) VALUES (1, ?, NOW(), 1, 2, ?, 0, 4, ?, ?)";
-$stmt = $conn->prepare($sqlInsert);
-$stmt->bind_param("issi", $idUser, $message, $selectedTeacherId, $idannescolaire);
+$sqlInsert = "INSERT INTO talimnet_mail (idetablissement, idutilisateur, dateheure, lu, expediteur, mail, idadministrateur, vers_qui, destinataire, idannescolaire) VALUES (?, ?, NOW(), 1, 2, ?, 0, 4, ?, ?)";
+$stmtInsert = $conn->prepare($sqlInsert);
+if (!$stmtInsert) {
+    die(json_encode(["error" => "Error preparing insert statement: " . $conn->error]));
+}
+$stmtInsert->bind_param("iissi", $idetablissement, $idUser, $message, $selectedTeacherId, $idannescolaire);
 
-if ($stmt->execute()) {
+if ($stmtInsert->execute()) {
     // Get the ID of the newly inserted row
     $newId = $conn->insert_id;
     
@@ -71,8 +91,11 @@ if ($stmt->execute()) {
         echo json_encode(["error" => "Error updating idsource: " . $stmtUpdate->error]);
     }
 } else {
-    echo json_encode(["error" => "Error: " . $stmt->error]);
+    echo json_encode(["error" => "Error: " . $stmtInsert->error]);
 }
 
+$stmtEtablissement->close();
+$stmtInsert->close();
+$stmtUpdate->close();
 $conn->close();
 ?>

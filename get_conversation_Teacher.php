@@ -19,6 +19,7 @@ if ($conn->connect_error) {
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json"); // Set content type to JSON
 
 // Get the JSON input
 $input = json_decode(file_get_contents('php://input'), true);
@@ -40,21 +41,32 @@ if (isset($input['idSource'])) {
     // Process each mail record
     $results = array();
     foreach ($mails as $mail) {
+        // Fetch the `nomprenom` from the appropriate table based on `idutilisateur`
         if ($mail['id'] == $idSource) {
-            // If expediteur = 1, fetch nom and prenom from talimnet_enseignants
-            $stmt2 = $conn->prepare("SELECT nom, prenom FROM talimnet_enseignants WHERE id = ?");
+            $tutorSql = "SELECT nomprenom FROM talimnet_tuteur WHERE id = ?";
+            $stmt2 = $conn->prepare($tutorSql);
             $stmt2->bind_param("i", $mail['idutilisateur']);
             $stmt2->execute();
-            $result2 = $stmt2->get_result();
-            $teacher = $result2->fetch_assoc();
-            $mail['nom'] = $teacher['nom'];
-            $mail['prenom'] = $teacher['prenom'];
+            $tutorResult = $stmt2->get_result();
+            if ($tutorResult->num_rows > 0) {
+                $tutor = $tutorResult->fetch_assoc();
+                $mail['nomprenom'] = $tutor['nomprenom'];
+            } else {
+                $mail['nomprenom'] = 'Unknown';
+            }
             $stmt2->close();
         } else {
-            // Otherwise, set nom to 'Moi'
-            $mail['nom'] = 'Moi';
-            $mail['prenom'] = '';
+            $mail['nomprenom'] = 'Moi';
         }
+
+        // Decode HTML entities and remove unwanted HTML tags, characters, and newlines
+        $mail['mail'] = html_entity_decode($mail['mail'], ENT_QUOTES, 'UTF-8');
+        $mail['mail'] = preg_replace('/<[^>]*>/', '', $mail['mail']); // Remove all HTML tags
+        $mail['mail'] = preg_replace('/&lt;br \/&gt;|&lt;b&gt;|&lt;\/b&gt;/i', '', $mail['mail']); // Remove specific unwanted substrings
+        $mail['mail'] = str_replace("\n", ' ', $mail['mail']); // Replace newlines with a space
+        $mail['mail'] = preg_replace('/\s+/', ' ', $mail['mail']); // Replace multiple spaces with a single space
+        $mail['mail'] = preg_replace('/\.\.\.\.\.\./', '', $mail['mail']); // Remove specific unwanted substring
+
         $results[] = $mail;
     }
 
