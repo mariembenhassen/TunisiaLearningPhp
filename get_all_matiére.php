@@ -3,6 +3,10 @@ $servername = "localhost";
 $username = "root";
 $password = "";
 $dbname = "tunisialearning";
+header('Content-Type: application/json');
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept");
 
 // Function to map IDs to Arabic names
 function decryptMatiereById($id, $originalMatiere) {
