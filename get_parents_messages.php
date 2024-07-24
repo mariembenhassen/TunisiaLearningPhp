@@ -1,12 +1,11 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-
-// Allow CORS and handle preflight requests
+header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    // Handle preflight request
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -22,75 +21,113 @@ $dbname = "tunisialearning";
 
 // Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
-$conn->set_charset("utf8mb4"); // Ensure UTF-8 encoding
 
 // Check connection
 if ($conn->connect_error) {
-    die(json_encode(array('error' => 'Connection failed: ' . $conn->connect_error)));
+    die("Connection failed: " . $conn->connect_error);
 }
 
 // Initialize variables
-$iduser = isset($_REQUEST['iduser']) ? $_REQUEST['iduser'] : null;
+$iduser = null;
+$idetablissement = null;
 
-
-// Validate parameters
-if ($iduser === null ) {
-    die(json_encode(array('error' => 'iduser not provided')));
+// Check if iduser and idetablissement are provided via POST or GET
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $iduser = $_POST['iduser'];
+    $idetablissement = $_POST['idetablissement'];
+} elseif ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    $iduser = $_GET['iduser'];
+    $idetablissement = $_GET['idetablissement'];
 }
 
-// Fetch the current school year
+// Validate parameters
+if ($iduser === null || $idetablissement === null) {
+    die(json_encode(array('error' => 'iduser and/or idetablissement not provided')));
+}
+
+// Fetch the current academic year ID
 $currentYearQuery = "SELECT id FROM talimnet_anneescolaire WHERE en_cours = 1";
 $currentYearResult = $conn->query($currentYearQuery);
 
-if ($currentYearResult->num_rows > 0) {
-    $currentYearRow = $currentYearResult->fetch_assoc();
-    $currentYear = $currentYearRow['id'];
-} else {
-    die(json_encode(array('error' => 'Current school year not found.')));
+if ($currentYearResult === false || $currentYearResult->num_rows == 0) {
+    die(json_encode(array('error' => 'Current academic year not found')));
 }
 
-// Query to fetch messages, including the current school year
-$sql = "SELECT * FROM talimnet_mail 
-        WHERE vers_qui = 4 
-        AND destinataire = $iduser 
-       
-        AND idannescolaire = $currentYear";
+$currentYearRow = $currentYearResult->fetch_assoc();
+$currentYearId = $currentYearRow['id'];
+
+// Fetch unique idsource for messages where iduser is either destinataire or idutilisateur
+$sql = "SELECT DISTINCT idsource 
+        FROM talimnet_mail 
+        WHERE (idutilisateur = $iduser OR destinataire = $iduser) 
+        AND idetablissement = $idetablissement
+        AND idannescolaire = $currentYearId";
 $result = $conn->query($sql);
 
+$idsources = array();
 if ($result !== false && $result->num_rows > 0) {
-    // Output data of each row with specific fields
-    $messages = array();
     while ($row = $result->fetch_assoc()) {
+        $idsources[] = $row['idsource'];
+    }
+}
+
+$messages = array();
+
+// Fetch the latest message for each idsource
+foreach ($idsources as $idsource) {
+    $latestMessageSql = "SELECT * FROM talimnet_mail 
+                         WHERE idsource = $idsource 
+                         ORDER BY dateheure DESC 
+                         LIMIT 1";
+    $latestMessageResult = $conn->query($latestMessageSql);
+
+    if ($latestMessageResult !== false && $latestMessageResult->num_rows > 0) {
+        $latestMessageRow = $latestMessageResult->fetch_assoc();
+
         $senderName = '';
-        if ($row['idadministrateur'] == 0) {
-            // Fetch tutor's name
-            $tutorSql = "SELECT nomprenom FROM talimnet_tuteur WHERE id = " . $row['idutilisateur'];
-            $tutorResult = $conn->query($tutorSql);
-            if ($tutorResult !== false && $tutorResult->num_rows > 0) {
-                $tutorRow = $tutorResult->fetch_assoc();
-                $senderName = $tutorRow['nomprenom'];
-            } else {
-                $senderName = 'Unknown Tutor';
-            }
+
+        if ($latestMessageRow['idutilisateur'] == $iduser) {
+            $senderName = 'Moi'; // Set sender name to 'Moi' if the user is the sender
         } else {
-            $senderName = 'Admin';
+            // Determine the sender's name if not the current user
+            if ($latestMessageRow['idadministrateur'] == 0) {
+                // Fetch tutor's name if idadministrateur is 0
+                $tuteurSql = "SELECT nomprenom FROM talimnet_tuteur WHERE id = " . $latestMessageRow['idutilisateur'];
+                $tuteurResult = $conn->query($tuteurSql);
+                if ($tuteurResult !== false && $tuteurResult->num_rows > 0) {
+                    $tuteurRow = $tuteurResult->fetch_assoc();
+                    $senderName = $tuteurRow['nomprenom'];
+                } else {
+                    $senderName = 'Unknown Tutor';
+                }
+            } else {
+                $senderName = 'Admin';
+            }
         }
+
+        // Sanitize message content
+        $sanitizedMessage = strip_tags($latestMessageRow['mail'], '<p><a>'); // Allow some tags if needed
+
         $messages[] = array(
-            'id' => $row['id'],
-            'mail' => $row['mail'],
-            'dateheure' => $row['dateheure'],
-            'lu' => $row['lu'],
-            'idadministrateur' => $row['idadministrateur'],
-            'idsender' => $row['idutilisateur'],
+            'id' => $latestMessageRow['id'],
+            'mail' => $sanitizedMessage,
+            'dateheure' => $latestMessageRow['dateheure'],
+            'lu' => $latestMessageRow['lu'],
+            'idadministrateur' => $latestMessageRow['idadministrateur'],
+            'idsender' => $latestMessageRow['idutilisateur'],
             'sender_name' => $senderName,
-            'idannescolaire' => $row['idannescolaire'],
-            'idsource' => $row['idsource']
+            'idannescolaire' => $latestMessageRow['idannescolaire'],
+            'idsource' => $latestMessageRow['idsource']
         );
     }
-    echo json_encode($messages);
-} else {
-    echo json_encode(array()); // Return empty array if no messages found
 }
+
+// Order messages by dateheure in descending order
+usort($messages, function($a, $b) {
+    return strtotime($b['dateheure']) - strtotime($a['dateheure']);
+});
+
+echo json_encode($messages);
 
 $conn->close();
 ?>
