@@ -1,17 +1,22 @@
 <?php
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
+// Handle preflight request
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    // Handle preflight request
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
     header('Access-Control-Max-Age: 86400'); // Cache for 1 day
     exit(0);
 }
+
+
+
+
 
 // Database credentials
 $servername = "localhost";
@@ -44,8 +49,22 @@ $sevenDaysAgo = date('Y-m-d', strtotime('-7 days'));
 // Debug: Log the calculated date
 error_log("Date 7 days ago: $sevenDaysAgo");
 
+// Fetch the current academic year ID
+$currentYearQuery = "SELECT id FROM talimnet_anneescolaire WHERE en_cours = 1";
+$currentYearResult = $conn->query($currentYearQuery);
+
+if ($currentYearResult === false || $currentYearResult->num_rows == 0) {
+    die(json_encode(['error' => 'Current academic year not found']));
+}
+
+$currentYearRow = $currentYearResult->fetch_assoc();
+$currentYearId = $currentYearRow['id'];
+
+// Debug: Log current academic year ID
+error_log("Current academic year ID: $currentYearId");
+
 // Prepare and execute the SQL query to check for new rows
-$sql = "SELECT type, date FROM talimnet_cours WHERE idniveau = ? AND idclasse = ? AND idetablissement = ? AND date >= ?";
+$sql = "SELECT type, date FROM talimnet_cours WHERE idniveau = ? AND idclasse = ? AND idetablissement = ? AND idanneescolaire = ? AND date >= ?";
 $stmt = $conn->prepare($sql);
 
 if ($stmt === false) {
@@ -56,7 +75,7 @@ if ($stmt === false) {
 error_log("SQL statement prepared successfully");
 
 // Bind parameters and execute statement
-$stmt->bind_param('iiss', $idniveau, $idclasse, $idetablissement, $sevenDaysAgo);
+$stmt->bind_param('iiiss', $idniveau, $idclasse, $idetablissement, $currentYearId, $sevenDaysAgo);
 $executeResult = $stmt->execute();
 
 if ($executeResult === false) {
